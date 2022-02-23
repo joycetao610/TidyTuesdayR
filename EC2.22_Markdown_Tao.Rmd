@@ -1,0 +1,110 @@
+---
+title: "J381-EC1_Tao"
+author: "Tao"
+date: "2/22/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/Users/lelesmac/Desktop/R-WD/CM")
+library(tidyverse)
+library(dplyr)
+library(tidytuesdayR)
+
+tuesdata <- tidytuesdayR::tt_load('2022-02-22')
+tuesdata <- tidytuesdayR::tt_load(2022, week = 6)
+
+
+freedom <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-22/freedom.csv')
+```
+
+```{r}
+###Data clearning  
+### thanks to this author: https://github.com/jmcastagnetto/tidytuesday-kludges/blob/main/2022-02-22_world-freedom-index/02-plot-maps.R
+summary(freedom)
+head(freedom)
+freedom_asia <- freedom %>%
+   filter(Region_Name == "Asia") %>%
+   group_by(country) %>%
+   filter ( year == 2000 | year == 2020) %>%
+   mutate (
+     Status = case_when(
+       Status == "NF" ~ "Not Free",
+       Status == "PF" ~ "Partially Free",
+       Status == "F" ~ "Free"
+     ),
+     Status = factor(
+       Status,
+       levels = c("Not Free", "Partially Free", "Free"),
+       ordered = TRUE
+     )
+   )
+```
+
+
+```{r}
+library(ggplot2)
+require(maps)
+require(viridis)   
+####Map Code adapted from atanovia.com/en/blog/how-to-create-a-map-using-ggplot2/
+theme_set(
+  theme_void()
+)
+
+```
+
+```{r}
+some.asia.country <- unique(freedom_asia$country)
+world_map <- map_data("world")
+
+some.asia.map <- map_data("world", region = some.asia.country)
+
+some.asia.map1<- some.asia.map %>%
+  left_join(freedom_asia, by = c("region" = "country")
+  )
+
+
+region.lab.data <- some.asia.map %>%
+  group_by(region) %>%
+  summarise(long = mean(long), lat = mean(lat))
+
+```
+###Plot the dataset
+```{r}
+pic <- ggplot(some.asia.map1, aes(x = long, y = lat)) +
+  geom_polygon(aes( group = group, fill = Status))+
+  geom_text(aes(label = region), data = region.lab.data,  size = 4, hjust = 0.5)+
+  scale_fill_brewer(palette = "BuPu", direction = -1)+
+  facet_grid(.~ year, switch = "both")  +
+  labs(
+    title = "Freedom change in Asian Countries : 2000 vs. 2020",
+    subtitle = "Sources: #TidyTuesday \ Freedom in the world (2022-02-22)",
+    caption = "Twitter@Taojingyue"
+  )  +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 20, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text (size = 10),
+        plot.margin = margin(2,1,1,1, "cm"),
+        plot.caption = element_text(size = 10),
+        strip.text.x = element_text(size = 12, face="bold"),
+        plot.background = element_rect (
+          fill = "white"
+        )
+        ) 
+
+```
+
+###Exporting
+```{r}
+ggsave(
+  plot = pic,
+  filename = "2022-02-22_freedom_asia.png",
+  height = 9,
+  width = 25
+)
+```
